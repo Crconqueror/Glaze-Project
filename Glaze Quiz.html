@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spot the Glaze</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #ECEDEF; --sheet: #FFFFFF; --ink: #1C2026; --muted: #646B75; --line: #D4D7DC;
+  --mark: #E89B00; --mark-soft: rgba(232,155,0,.14); --good: #1F8A5B; --bad: #D0412F;
+  --film: #23262B; --film-hole: #ECEDEF; --shadow: 0 1px 2px rgba(20,24,30,.06), 0 8px 24px rgba(20,24,30,.08);
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #15171B; --sheet: #1F2227; --ink: #ECEEF1; --muted: #9AA1AB; --line: #30343B;
+    --mark: #FFC23D; --mark-soft: rgba(255,194,61,.12); --good: #4CC48A; --bad: #F2735F;
+    --film: #0B0C0E; --film-hole: #2A2E35; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #15171B; --sheet: #1F2227; --ink: #ECEEF1; --muted: #9AA1AB; --line: #30343B;
+  --mark: #FFC23D; --mark-soft: rgba(255,194,61,.12); --good: #4CC48A; --bad: #F2735F;
+  --film: #0B0C0E; --film-hole: #2A2E35; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+}
+*, *::before, *::after { box-sizing: inherit; }
+html, body { margin: 0; }
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.55; min-height: 100vh; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.08; letter-spacing: -0.02em; margin: 0; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.small { font-size: .88rem; }
+.hidden { display: none !important; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 3px solid var(--mark); outline-offset: 3px; border-radius: 6px; }
+
+.primary {
+  background: var(--ink); color: var(--paper); border: 0; border-radius: 999px;
+  padding: .75rem 1.6rem; font-family: var(--display); font-weight: 700; font-size: 1.05rem;
+  transition: transform .15s ease, opacity .15s;
+}
+.primary:hover:not(:disabled) { transform: translateY(-1px); }
+.primary:active:not(:disabled) { transform: translateY(1px); }
+.primary:disabled { opacity: .3; cursor: not-allowed; }
+.primary.big { padding: 1rem 2.4rem; font-size: 1.2rem; }
+.ghost {
+  background: transparent; border: 1.5px solid var(--line); border-radius: 999px;
+  padding: .6rem 1.2rem; font-weight: 700; transition: border-color .15s;
+}
+.ghost:hover { border-color: var(--ink); }
+
+/* Top bar */
+.bar {
+  position: sticky; top: 0; z-index: 20; background: var(--paper);
+  display: flex; align-items: center; gap: 1.25rem; padding: .8rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+}
+.brand { font-family: var(--display); font-weight: 800; font-size: 1.15rem; white-space: nowrap; display: flex; align-items: center; gap: .5rem; }
+.brand svg { width: 22px; height: 22px; }
+.strip {
+  flex: 1; display: flex; gap: 3px; background: var(--film); padding: 6px 6px; border-radius: 4px;
+  max-width: 560px; margin: 0 auto; min-height: 30px; position: relative; visibility: hidden;
+}
+.strip.on { visibility: visible; }
+.strip::before, .strip::after {
+  content: ""; position: absolute; left: 6px; right: 6px; height: 2px;
+  background: repeating-linear-gradient(90deg, var(--film-hole) 0 5px, transparent 5px 11px);
+  opacity: .55;
+}
+.strip::before { top: 2px; } .strip::after { bottom: 2px; }
+.cell { flex: 1; height: 18px; margin: 0; border-radius: 2px; background: #3A3E45; transition: background .3s, box-shadow .3s; }
+.cell.done { background: #8C939C; }
+.cell.now { background: var(--mark); box-shadow: 0 0 0 2px rgba(255,255,255,.15); }
+.toggle { display: flex; align-items: center; gap: .45rem; font-size: .9rem; color: var(--muted); white-space: nowrap; cursor: pointer; user-select: none; }
+.toggle input { accent-color: var(--mark); width: 16px; height: 16px; }
+
+main { max-width: 1240px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+
+/* Setup */
+.hero { padding: 2.5rem 0 2rem; max-width: 760px; }
+.hero h1 { font-size: clamp(2.6rem, 7vw, 4.6rem); font-weight: 800; }
+.hero h1 .ring { position: relative; display: inline-block; }
+.hero h1 .ring svg { position: absolute; inset: -14% -8%; width: 116%; height: 128%; overflow: visible; pointer-events: none; }
+.hero h1 .ring ellipse { fill: none; stroke: var(--mark); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 1.1s .4s cubic-bezier(.6,.1,.3,1) forwards; }
+.lede { font-size: 1.15rem; margin-top: 1.1rem; max-width: 60ch; color: var(--muted); }
+.setup-grid { display: grid; grid-template-columns: 1.2fr 1.2fr .8fr; gap: 1rem; margin-top: 1rem; }
+.card { background: var(--sheet); border-radius: 14px; padding: 1.3rem 1.3rem 1.2rem; box-shadow: var(--shadow); border: 2px solid transparent; transition: border-color .2s; position: relative; }
+.card.ready { border-color: var(--good); }
+.card h3 { font-size: 1.15rem; display: flex; gap: .55rem; align-items: baseline; }
+.card h3 .n { font-size: .85rem; color: var(--muted); font-weight: 700; }
+.card .status { margin-top: .4rem; color: var(--muted); font-size: .95rem; min-height: 3em; }
+.card.ready .status { color: var(--ink); }
+.card .row { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .9rem; }
+.card input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.count-input { display: flex; align-items: center; gap: .5rem; margin-top: .9rem; }
+.count-input button { width: 38px; height: 38px; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; font-weight: 700; font-size: 1.2rem; line-height: 1; }
+.count-input button:hover { border-color: var(--ink); }
+.count-input output { font-family: var(--display); font-weight: 800; font-size: 2rem; min-width: 2.2ch; text-align: center; }
+.go { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; margin-top: 1.75rem; }
+.warn { background: var(--sheet); border-left: 4px solid var(--bad); padding: .8rem 1rem; border-radius: 6px; margin-top: 1rem; font-size: .95rem; box-shadow: var(--shadow); }
+.warn ul { margin: .4rem 0 0; padding-left: 1.2rem; max-height: 9em; overflow: auto; }
+.teaser { margin-top: 3rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
+.teaser .note { background: transparent; border: 1.5px dashed var(--line); border-radius: 14px; padding: 1.1rem 1.2rem; }
+.kind { display: inline-block; font-size: .8rem; font-weight: 700; padding: .15rem .6rem; border-radius: 999px; background: var(--mark-soft); color: var(--ink); }
+.note h3 { font-size: 1.1rem; margin: .55rem 0 .35rem; }
+.note p { font-size: .95rem; color: var(--muted); }
+
+/* Stage */
+.stage-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.stage-head h2 { font-size: 1.6rem; }
+.view { animation: inUp .35s cubic-bezier(.2,.7,.2,1); }
+.view.out { animation: outDown .18s ease-in forwards; }
+.pair { display: flex; justify-content: center; align-items: flex-start; gap: 1.25rem; }
+.pair.stack { flex-direction: column; align-items: center; gap: 1rem; }
+.pair.loading .choice { visibility: hidden; }
+.choice {
+  position: relative; background: var(--sheet); border: 2px solid transparent; border-radius: 14px;
+  padding: 10px; display: flex; flex-direction: column; align-items: center; gap: .4rem;
+  box-shadow: var(--shadow); transition: transform .18s ease, border-color .18s;
+}
+.choice:hover { transform: translateY(-3px); border-color: var(--line); }
+.choice:active { transform: translateY(0) scale(.99); }
+.frame { position: relative; line-height: 0; }
+.frame img { display: block; max-width: 100%; height: auto; border-radius: 6px; background: var(--paper); }
+.tag { font-family: var(--display); font-weight: 700; font-size: .95rem; color: var(--muted); padding-bottom: .1rem; }
+.choice .mark { position: absolute; inset: -14px; width: calc(100% + 28px); height: calc(100% + 28px); pointer-events: none; overflow: visible; }
+.choice .mark ellipse { fill: none; stroke: var(--mark); stroke-width: .9; opacity: 0; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+.choice.picked { border-color: var(--mark); transform: none; }
+.choice.picked .mark ellipse { opacity: 1; animation: draw .45s cubic-bezier(.6,.1,.3,1) forwards; }
+.choice.dim { opacity: .45; transform: scale(.98); }
+.loupe {
+  position: absolute; width: 170px; height: 170px; border-radius: 50%; pointer-events: none;
+  border: 3px solid var(--mark); box-shadow: 0 6px 24px rgba(0,0,0,.35); background-repeat: no-repeat;
+  opacity: 0; transition: opacity .12s; z-index: 5; background-color: var(--paper);
+}
+.loupe.on { opacity: 1; }
+.keys { display: inline-flex; gap: .3rem; align-items: center; }
+kbd { font-family: var(--body); font-size: .8rem; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: .05rem .4rem; background: var(--sheet); }
+
+/* Fact interstitial */
+.fact-wrap { min-height: 60vh; display: grid; place-items: center; }
+.fact {
+  max-width: 640px; background: var(--sheet); border-radius: 18px; padding: 2.4rem 2.4rem 2rem;
+  box-shadow: var(--shadow); position: relative;
+  border-top: 6px solid var(--mark);
+}
+.fact h2 { font-size: clamp(1.8rem, 4vw, 2.5rem); margin: .9rem 0 .8rem; font-weight: 800; }
+.fact p { font-size: 1.15rem; line-height: 1.65; max-width: 54ch; }
+.fact .row { display: flex; gap: 1rem; align-items: center; margin-top: 1.8rem; flex-wrap: wrap; }
+
+/* Results */
+.result-hero { display: grid; grid-template-columns: auto 1fr; gap: 2rem; align-items: center; padding: 1.5rem 0 1rem; }
+.score { font-family: var(--display); font-weight: 800; font-size: clamp(5rem, 16vw, 9rem); line-height: .9; letter-spacing: -0.05em; }
+.score small { font-size: .4em; color: var(--muted); letter-spacing: -0.02em; }
+.result-hero h2 { font-size: clamp(1.6rem, 3.5vw, 2.3rem); }
+.result-hero p { margin-top: .6rem; color: var(--muted); max-width: 52ch; }
+.meter { margin-top: 1rem; height: 10px; border-radius: 99px; background: var(--line); position: relative; max-width: 420px; overflow: visible; }
+.meter > i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 99px; background: var(--mark); width: 0; transition: width 1s cubic-bezier(.2,.7,.2,1); }
+.meter > b { position: absolute; left: 50%; top: -5px; bottom: -5px; width: 2px; background: var(--ink); opacity: .5; }
+.meter-label { font-size: .8rem; color: var(--muted); margin-top: .35rem; max-width: 420px; display: flex; justify-content: space-between; }
+.actions { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: 1.4rem; }
+.review { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; margin-top: 2.5rem; }
+.rcard { background: var(--sheet); border-radius: 14px; padding: .9rem; box-shadow: var(--shadow); text-align: left; border: 2px solid transparent; transition: transform .15s, border-color .15s; display: block; width: 100%; }
+.rcard:hover { transform: translateY(-2px); border-color: var(--line); }
+.rhead { display: flex; justify-content: space-between; align-items: center; margin-bottom: .7rem; }
+.rhead b { font-family: var(--display); }
+.verdict { font-size: .82rem; font-weight: 700; padding: .15rem .65rem; border-radius: 99px; color: #fff; background: var(--good); }
+.verdict.no { background: var(--bad); }
+.thumbs { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+.thumbs figure { margin: 0; }
+.thumbs img { width: 100%; height: 150px; object-fit: contain; background: var(--paper); border-radius: 6px; display: block; outline: 3px solid transparent; outline-offset: 1px; }
+.thumbs img.picked { outline-color: var(--mark); }
+.thumbs figcaption { font-size: .82rem; color: var(--muted); margin-top: .35rem; }
+.thumbs figcaption .g { color: var(--ink); font-weight: 700; }
+
+/* Lightbox */
+.lightbox { position: fixed; inset: 0; z-index: 50; background: rgba(10,11,13,.86); display: grid; place-items: center; padding: max(1rem, env(safe-area-inset-top, 0px)) 1rem max(1rem, env(safe-area-inset-bottom, 0px)); animation: fade .2s; }
+.lb-inner { width: min(1400px, 100%); max-height: 100%; overflow: auto; }
+.lb-pair { display: flex; gap: 1rem; justify-content: center; }
+.lb-pair.stack { flex-direction: column; align-items: center; }
+.lb-pair figure { margin: 0; flex: 1 1 0; min-width: 0; text-align: center; }
+.lb-pair img { max-width: 100%; max-height: 80vh; object-fit: contain; border-radius: 8px; outline: 3px solid transparent; outline-offset: 2px; }
+.lb-pair.stack img { max-height: 40vh; }
+.lb-pair img.picked { outline-color: var(--mark); }
+.lb-pair figcaption { color: #E9ECEF; margin-top: .5rem; font-weight: 700; }
+.lb-close { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 12px); right: 16px; background: #fff; color: #111; border: 0; border-radius: 99px; padding: .45rem 1rem; font-weight: 700; }
+
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes inUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes outDown { to { opacity: 0; transform: translateY(-8px); } }
+@keyframes fade { from { opacity: 0; } }
+@media (max-width: 860px) {
+  .setup-grid { grid-template-columns: 1fr; }
+  .result-hero { grid-template-columns: 1fr; gap: .5rem; }
+  .brand span { display: none; }
+}
+@media (max-width: 560px) {
+  body { font-size: 16px; }
+  .fact { padding: 1.8rem 1.4rem 1.5rem; }
+  .pair { gap: .6rem; }
+  .choice { padding: 6px; }
+}
+@media (hover: none) { #loupeWrap { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001s !important; transition-duration: .001s !important; }
+}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="brand">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10" cy="10" r="6.5"/><path d="M15 15l5.5 5.5"/></svg>
+    <span>Spot the Glaze</span>
+  </div>
+  <div class="strip" id="strip" aria-hidden="true"></div>
+  <label class="toggle" id="loupeWrap" title="Magnify the same spot in both images (L)"><input type="checkbox" id="loupeToggle" checked> Loupe</label>
+</header>
+
+<main>
+
+<!-- Setup -->
+<section id="setup">
+  <div class="hero view">
+    <h1>Can you see the <span class="ring">cloak?<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><ellipse cx="50" cy="52" rx="48" ry="44" pathLength="1"/></svg></span></h1>
+    <p class="lede">Glaze hides tiny changes inside an image so AI models misread its style. Each round puts an original next to its glazed twin. Pick the one you think is glazed.</p>
+  </div>
+
+  <div class="setup-grid">
+    <div class="card" id="glazeCard">
+      <h3><span class="n">1</span> Glazed folder</h3>
+      <p class="status" id="glazeStatus">Choose the folder Glaze saved to.</p>
+      <div class="row">
+        <button type="button" class="ghost" id="glazeBtn">Choose folder</button>
+        <button type="button" class="ghost hidden" id="reconnectBtn">Reconnect</button>
+      </div>
+      <input type="file" id="glazeInput" webkitdirectory directory multiple>
+    </div>
+    <div class="card" id="origCard">
+      <h3><span class="n">2</span> Original images</h3>
+      <p class="status" id="origStatus">Select all the originals you might want in a quiz.</p>
+      <div class="row"><button type="button" class="ghost" id="origBtn">Select images</button></div>
+      <input type="file" id="origInput" accept="image/*" multiple>
+    </div>
+    <div class="card">
+      <h3><span class="n">3</span> Pairs per round</h3>
+      <div class="count-input">
+        <button type="button" id="minus" aria-label="Fewer pairs">−</button>
+        <output id="countOut">10</output>
+        <button type="button" id="plus" aria-label="More pairs">+</button>
+      </div>
+      <p class="small muted" id="countNote" style="margin-top:.5rem">Picked at random each round.</p>
+    </div>
+  </div>
+
+  <div id="pairInfo"></div>
+  <div class="go">
+    <button class="primary big" id="startBtn" disabled>Start</button>
+    <span class="muted small" id="startNote">Add both folders to begin.</span>
+  </div>
+
+  <div class="teaser" id="teaser"></div>
+</section>
+
+<!-- Quiz stage -->
+<section id="stage" class="hidden">
+  <div id="pairView" class="view">
+    <div class="stage-head">
+      <h2 id="roundLabel">Pair 1 of 10</h2>
+      <span class="muted small" id="hint"></span>
+    </div>
+    <div class="pair loading" id="pair">
+      <button class="choice" id="leftBtn">
+        <div class="frame"><img id="leftImg" alt="Option one"><div class="loupe" id="leftLoupe"></div></div>
+        <span class="tag" id="leftLbl">Left</span>
+        <svg class="mark" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><ellipse cx="50" cy="50" rx="48" ry="47" pathLength="1"/></svg>
+      </button>
+      <button class="choice" id="rightBtn">
+        <div class="frame"><img id="rightImg" alt="Option two"><div class="loupe" id="rightLoupe"></div></div>
+        <span class="tag" id="rightLbl">Right</span>
+        <svg class="mark" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><ellipse cx="50" cy="50" rx="48" ry="47" pathLength="1"/></svg>
+      </button>
+    </div>
+    <div class="warn hidden" id="loadError"></div>
+  </div>
+
+  <div id="factView" class="fact-wrap hidden">
+    <article class="fact view" id="factCard">
+      <span class="kind" id="factKind"></span>
+      <h2 id="factTitle"></h2>
+      <p id="factBody"></p>
+      <div class="row">
+        <button class="primary" id="factNext">Next pair</button>
+        <span class="muted small keys">or press <kbd>Enter</kbd></span>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- Results -->
+<section id="results" class="hidden">
+  <div class="result-hero view">
+    <div class="score" id="score">0<small>/10</small></div>
+    <div>
+      <h2 id="resultTitle"></h2>
+      <p id="resultNote"></p>
+      <div class="meter"><i id="meterFill"></i><b title="Chance"></b></div>
+      <div class="meter-label"><span>0%</span><span>chance</span><span>100%</span></div>
+      <div class="actions">
+        <button class="primary" id="retryBtn">New round</button>
+        <button class="ghost" id="newBtn">Change images</button>
+      </div>
+    </div>
+  </div>
+  <div class="review" id="review"></div>
+</section>
+
+</main>
+
+<div class="lightbox hidden" id="lightbox" role="dialog" aria-modal="true" aria-label="Pair close-up">
+  <button class="lb-close" id="lbClose">Close</button>
+  <div class="lb-inner"><div class="lb-pair" id="lbPair"></div></div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  const IMG_EXT = /\.(png|jpe?g|webp|gif|bmp|avif)$/i;
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const stem = name => name.replace(/\.[^.]+$/, "").toLowerCase();
+  const imagesOnly = list => Array.from(list).filter(f => IMG_EXT.test(f.name));
+  const shuffle = arr => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+
+  // ---------- Facts ----------
+  const FACTS = [
+    { k: "Behind the tech", t: "Where Glaze came from", b: "Glaze was built by the SAND Lab at the University of Chicago and released in 2023 to help artists protect their style from being mimicked by AI models." },
+    { k: "Behind the tech", t: "Cloaking, not hiding", b: "Glaze doesn't stop anyone from viewing or saving an image. It changes pixels so that a model trained on it learns a distorted version of the artist's style." },
+    { k: "Did you know", t: "Glaze's sibling, Nightshade", b: "Same lab, different goal. Nightshade is a poisoning tool: a shaded picture of a cow can teach a model something closer to a handbag, damaging that concept for anyone training on scraped images." },
+    { k: "Did you know", t: "Small doses, big effect", b: "The Nightshade researchers reported that a few hundred poisoned images, or fewer, could noticeably corrupt a single prompt concept in Stable Diffusion." },
+    { k: "Did you know", t: "The panda that became a gibbon", b: "In 2014, Ian Goodfellow and colleagues added a nearly invisible noise pattern to a photo of a panda, and a classifier confidently called it a gibbon. Glaze builds on this idea of adversarial perturbations." },
+    { k: "Spotting tip", t: "Look at the smooth parts", b: "Perturbations hide well in busy textures like foliage or fabric. Skies, skin and soft gradients are where faint patterns or shimmer are easiest to catch." },
+    { k: "Spotting tip", t: "Use the loupe", b: "Hover over either image to magnify the same spot in both at once. Higher Glaze intensities can leave faint swirly, painterly artifacts that only show up close." },
+    { k: "Behind the tech", t: "Pictures from noise", b: "Stable Diffusion starts from pure random noise and removes a little at each step, usually over 20 to 50 steps, guided by your prompt until an image appears." },
+    { k: "Behind the tech", t: "Thinking small", b: "Stable Diffusion doesn't denoise pixels directly. An autoencoder squeezes each image into a latent eight times smaller in width and height, and the generation happens there." },
+    { k: "Did you know", t: "Billions of examples", b: "Stable Diffusion was trained on subsets of LAION-5B, a dataset of about 5.85 billion image–text pairs gathered from the web. That scale is why consent and opt-out tools became such a debate." },
+    { k: "Use case", t: "Protecting a portfolio", b: "Artists can glaze work before posting it online, so that style models fine-tuned on scraped copies, such as LoRAs, pick up a skewed version of their style." },
+    { k: "Use case", t: "No GPU, no problem", b: "WebGlaze is a free browser-based version run by the same lab, made for artists whose computers can't run Glaze locally." },
+    { k: "Did you know", t: "Not a permanent shield", b: "Researchers have shown that some protections can be weakened, for example by noisy upscaling and other preprocessing. Cloaking raises the cost of mimicry rather than making it impossible." },
+    { k: "Spotting tip", t: "Why these weren't resized", b: "Resizing and heavy JPEG compression can blur away part of a perturbation. That's why the pairs in this quiz were kept at their original size after glazing." },
+    { k: "Did you know", t: "Labelling AI images", b: "Google's SynthID embeds invisible watermarks into AI-generated images, and the C2PA standard attaches signed records describing how an image was made." },
+    { k: "Did you know", t: "When AI eats its own tail", b: "A 2024 study in Nature found that models trained repeatedly on AI-generated data lose diversity over generations, a problem called model collapse." },
+    { k: "Use case", t: "Stress-testing models", b: "Researchers also use poisoned and adversarial images to probe how fragile models are, and to design defenses that make them sturdier." },
+    { k: "Behind the tech", t: "A budget for invisibility", b: "Cloaking tools limit how far they change an image using a perceptual-similarity budget, trading off how visible the edits are against how strongly they protect." }
+  ];
+  let factDeck = [];
+  const nextFact = () => { if (!factDeck.length) factDeck = shuffle(FACTS); return factDeck.pop(); };
+
+  function renderTeaser() {
+    $("teaser").innerHTML = shuffle(FACTS).slice(0, 3).map(f =>
+      `<div class="note"><span class="kind">${esc(f.k)}</span><h3>${esc(f.t)}</h3><p>${esc(f.b)}</p></div>`).join("");
+  }
+
+  // ---------- State ----------
+  let originals = [], glazed = [], pairs = [], rounds = [], seq = [], step = 0, busy = false;
+  let perRound = 10, glazeFolderName = "", savedHandle = null;
+
+  // ---------- Pairing ----------
+  function buildPairs() {
+    const sorted = originals.map(f => ({ file: f, s: stem(f.name) })).sort((a, b) => b.s.length - a.s.length);
+    const used = new Set(), found = new Map(), missing = [];
+    for (const o of sorted) {
+      const c = glazed.filter(g => !used.has(g) && stem(g.name).startsWith(o.s)).sort((a, b) => a.name.length - b.name.length)[0];
+      if (c) { used.add(c); found.set(o.file, c); } else missing.push(o.file.name);
+    }
+    return { result: originals.filter(f => found.has(f)).map(f => ({ original: f, glazed: found.get(f) })), missing };
+  }
+
+  function updateSetup() {
+    $("glazeStatus").textContent = glazed.length
+      ? `${glazed.length} glazed images found${glazeFolderName ? ` in “${glazeFolderName}”` : ""}.`
+      : savedHandle ? `Click Reconnect to use “${savedHandle.name}” again.` : "Choose the folder Glaze saved to.";
+    $("origStatus").textContent = originals.length
+      ? `${originals.length} original${originals.length === 1 ? "" : "s"} selected.`
+      : "Select all the originals you might want in a quiz.";
+    $("origBtn").textContent = originals.length ? "Change selection" : "Select images";
+    $("glazeCard").classList.toggle("ready", glazed.length > 0);
+    $("origCard").classList.toggle("ready", originals.length > 0);
+
+    const info = $("pairInfo");
+    info.innerHTML = "";
+    pairs = [];
+    if (originals.length && glazed.length) {
+      const { result, missing } = buildPairs();
+      pairs = result;
+      if (missing.length) {
+        info.innerHTML = `<div class="warn">No glazed copy found for ${missing.length} image${missing.length === 1 ? "" : "s"}, so ${missing.length === 1 ? "it" : "they"}'ll be skipped. A glazed file's name must start with its original's name.<ul>${missing.map(n => `<li>${esc(n)}</li>`).join("")}</ul></div>`;
+      }
+    }
+    const n = Math.min(perRound, pairs.length || perRound);
+    $("countOut").textContent = n;
+    $("startBtn").disabled = pairs.length === 0;
+    $("startNote").textContent = !originals.length || !glazed.length
+      ? "Add both to begin."
+      : pairs.length ? `${pairs.length} matched pairs available. Each round picks ${n} at random.` : "None of the selected originals have a glazed match.";
+  }
+
+  $("minus").addEventListener("click", () => { perRound = Math.max(1, Math.min(perRound, pairs.length || 99) - 1); updateSetup(); });
+  $("plus").addEventListener("click", () => { perRound = Math.min(pairs.length || 99, perRound + 1); updateSetup(); });
+
+  // ---------- Folder access ----------
+  const canRemember = "showDirectoryPicker" in window && "indexedDB" in window;
+  function idb(mode, fn) {
+    return new Promise((res, rej) => {
+      const open = indexedDB.open("spot-the-glaze", 1);
+      open.onupgradeneeded = () => open.result.createObjectStore("kv");
+      open.onerror = () => rej(open.error);
+      open.onsuccess = () => {
+        const tx = open.result.transaction("kv", mode);
+        const req = fn(tx.objectStore("kv"));
+        tx.oncomplete = () => res(req && req.result);
+        tx.onerror = () => rej(tx.error);
+      };
+    });
+  }
+  const saveHandle = h => idb("readwrite", s => s.put(h, "glazedDir")).catch(() => {});
+  const loadHandle = () => idb("readonly", s => s.get("glazedDir")).catch(() => null);
+
+  async function readDir(handle) {
+    $("glazeStatus").textContent = "Reading folder…";
+    const files = [];
+    for await (const entry of handle.values()) {
+      if (entry.kind === "file" && IMG_EXT.test(entry.name)) files.push(await entry.getFile());
+    }
+    glazed = files; glazeFolderName = handle.name;
+    $("reconnectBtn").classList.add("hidden");
+    updateSetup();
+  }
+
+  $("glazeBtn").addEventListener("click", async () => {
+    if (!canRemember) { $("glazeInput").click(); return; }
+    try {
+      const h = await window.showDirectoryPicker({ id: "glazed", mode: "read" });
+      savedHandle = h; await saveHandle(h); await readDir(h);
+    } catch (e) { if (e && e.name !== "AbortError") $("glazeInput").click(); }
+  });
+  $("reconnectBtn").addEventListener("click", async () => {
+    try { if (await savedHandle.requestPermission({ mode: "read" }) === "granted") await readDir(savedHandle); }
+    catch (e) { $("glazeStatus").textContent = "That folder can't be opened any more. Choose it again."; $("reconnectBtn").classList.add("hidden"); }
+  });
+  $("glazeInput").addEventListener("change", e => {
+    glazed = imagesOnly(e.target.files);
+    glazeFolderName = glazed[0] && glazed[0].webkitRelativePath ? glazed[0].webkitRelativePath.split("/")[0] : "";
+    updateSetup();
+  });
+  $("origBtn").addEventListener("click", () => $("origInput").click());
+  $("origInput").addEventListener("change", e => { originals = imagesOnly(e.target.files); updateSetup(); });
+
+  (async function restore() {
+    if (!canRemember) return;
+    const h = await loadHandle();
+    if (!h) return;
+    savedHandle = h;
+    try { if (await h.queryPermission({ mode: "read" }) === "granted") { await readDir(h); return; } } catch (e) {}
+    $("reconnectBtn").classList.remove("hidden");
+    updateSetup();
+  })();
+
+  // ---------- Image loading ----------
+  const urlCache = new Map(), urlDone = new Map();
+  function getUrl(f) {
+    if (!urlCache.has(f)) urlCache.set(f, new Promise(res => {
+      const r = new FileReader();
+      r.onload = () => { urlDone.set(f, r.result); res(r.result); };
+      r.onerror = () => res("");
+      r.readAsDataURL(f);
+    }));
+    return urlCache.get(f);
+  }
+  function loadImg(src) {
+    return new Promise(res => { if (!src) return res(null); const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
+  }
+  async function prepRound(r) {
+    if (r.ready) return r.ready;
+    r.ready = (async () => {
+      const [a, b] = await Promise.all([getUrl(r.original), getUrl(r.glazed)]);
+      const [ia, ib] = await Promise.all([loadImg(a), loadImg(b)]);
+      r.okOrig = !!ia; r.okGlazed = !!ib;
+      const ref = ia || ib;
+      r.aspect = ref ? ref.naturalWidth / ref.naturalHeight : 1;
+    })();
+    return r.ready;
+  }
+
+  // ---------- Film strip ----------
+  function renderStrip() {
+    const done = rounds.filter(r => r.pickedLeft !== null).length;
+    const curPair = seq[step] && seq[step].type === "pair" ? seq[step].i : -1;
+    $("strip").innerHTML = rounds.map((r, i) => `<span class="cell${r.pickedLeft !== null ? " done" : ""}${i === curPair ? " now" : ""}"></span>`).join("");
+    $("strip").classList.add("on");
+    $("strip").title = `${done} of ${rounds.length} done`;
+  }
+
+  // ---------- Flow ----------
+  function startQuiz() {
+    const n = Math.min(perRound, pairs.length);
+    rounds = shuffle(pairs).slice(0, n).map(p => ({ ...p, glazedOnLeft: Math.random() < 0.5, pickedLeft: null }));
+    seq = [];
+    rounds.forEach((r, i) => {
+      seq.push({ type: "pair", i });
+      if ((i + 1) % 2 === 0 && i + 1 < rounds.length) seq.push({ type: "fact", fact: nextFact() });
+    });
+    step = 0;
+    showScreen("stage");
+    renderStep();
+    rounds.slice(0, 2).forEach(prepRound);
+  }
+
+  function showScreen(id) {
+    ["setup", "stage", "results"].forEach(s => $(s).classList.toggle("hidden", s !== id));
+    $("strip").classList.toggle("on", id === "stage");
+    window.scrollTo(0, 0);
+  }
+
+  function replay(el) { el.classList.remove("view", "out"); void el.offsetWidth; el.classList.add("view"); }
+
+  async function renderStep() {
+    const item = seq[step];
+    renderStrip();
+    if (item.type === "fact") {
+      $("pairView").classList.add("hidden");
+      $("factView").classList.remove("hidden");
+      $("factKind").textContent = item.fact.k;
+      $("factTitle").textContent = item.fact.t;
+      $("factBody").textContent = item.fact.b;
+      $("factNext").textContent = "Next pair";
+      replay($("factCard"));
+      $("factNext").focus({ preventScroll: true });
+      busy = false;
+      return;
+    }
+    $("factView").classList.add("hidden");
+    $("pairView").classList.remove("hidden");
+    replay($("pairView"));
+    const r = rounds[item.i];
+    $("roundLabel").textContent = `Pair ${item.i + 1} of ${rounds.length}`;
+    const pairEl = $("pair");
+    pairEl.classList.add("loading");
+    ["leftBtn", "rightBtn"].forEach(id => $(id).classList.remove("picked", "dim"));
+    await prepRound(r);
+    if (seq[step] !== item) return;
+    const lf = r.glazedOnLeft ? r.glazed : r.original;
+    const rf = r.glazedOnLeft ? r.original : r.glazed;
+    const ls = urlDone.get(lf) || "", rs = urlDone.get(rf) || "";
+    $("leftImg").src = ls; $("rightImg").src = rs;
+    $("leftLoupe").style.backgroundImage = ls ? `url("${ls}")` : "";
+    $("rightLoupe").style.backgroundImage = rs ? `url("${rs}")` : "";
+    const bad = [];
+    if (!r.okOrig) bad.push(r.original.name);
+    if (!r.okGlazed) bad.push(r.glazed.name);
+    $("loadError").classList.toggle("hidden", !bad.length);
+    if (bad.length) $("loadError").textContent = `This browser couldn't display ${bad.join(" and ")}. Check that the file opens in an image viewer and is PNG, JPEG or WebP.`;
+    layoutPair();
+    pairEl.classList.remove("loading");
+    busy = false;
+    // Warm up the next pairs in the background.
+    rounds.slice(item.i + 1, item.i + 3).forEach(prepRound);
+  }
+
+  function pick(left) {
+    const item = seq[step];
+    if (busy || !item || item.type !== "pair" || $("pair").classList.contains("loading")) return;
+    busy = true;
+    rounds[item.i].pickedLeft = left;
+    hideLoupes();
+    $(left ? "leftBtn" : "rightBtn").classList.add("picked");
+    $(left ? "rightBtn" : "leftBtn").classList.add("dim");
+    renderStrip();
+    setTimeout(() => {
+      $("pairView").classList.add("out");
+      setTimeout(advance, 170);
+    }, 480);
+  }
+
+  function advance() {
+    if (busy && seq[step] && seq[step].type === "fact") return;
+    step++;
+    if (step >= seq.length) { showResults(); return; }
+    renderStep();
+  }
+
+  $("leftBtn").addEventListener("click", () => pick(true));
+  $("rightBtn").addEventListener("click", () => pick(false));
+  $("factNext").addEventListener("click", () => {
+    if (busy) return; busy = true;
+    $("factCard").classList.add("out");
+    setTimeout(() => { busy = false; advance(); }, 170);
+  });
+
+  // ---------- Layout ----------
+  function layoutPair() {
+    const item = seq[step];
+    if (!item || item.type !== "pair") return;
+    const a = rounds[item.i].aspect || 1;
+    const pairEl = $("pair");
+    const W = pairEl.clientWidth;
+    const top = pairEl.getBoundingClientRect().top;
+    const H = Math.max(260, window.innerHeight - Math.max(top, 0) - 28);
+    const gap = 20, CH = 24, L = 30;
+    const sideW = Math.min((W - gap) / 2 - CH, (H - CH - L) * a);
+    const stackW = Math.min(W - CH, ((H - gap) / 2 - CH - L) * a);
+    const stacked = stackW > sideW * 1.1;
+    const w = Math.max(110, Math.floor(stacked ? stackW : sideW));
+    pairEl.classList.toggle("stack", stacked);
+    $("leftImg").style.width = $("rightImg").style.width = w + "px";
+    $("leftLbl").textContent = stacked ? "Top" : "Left";
+    $("rightLbl").textContent = stacked ? "Bottom" : "Right";
+    $("hint").innerHTML = stacked
+      ? `Pick the glazed one · <kbd>↑</kbd> <kbd>↓</kbd>`
+      : `Pick the glazed one · <kbd>←</kbd> <kbd>→</kbd>`;
+  }
+  let rT;
+  window.addEventListener("resize", () => { cancelAnimationFrame(rT); rT = requestAnimationFrame(layoutPair); });
+
+  // ---------- Loupe (same spot in both images) ----------
+  const ZOOM = 3, RAD = 85;
+  const loupeOn = () => finePointer && $("loupeToggle").checked;
+  function hideLoupes() { $("leftLoupe").classList.remove("on"); $("rightLoupe").classList.remove("on"); }
+  function moveLoupes(e) {
+    if (!loupeOn() || busy) return;
+    const img = e.currentTarget.querySelector("img");
+    const rect = img.getBoundingClientRect();
+    const rx = (e.clientX - rect.left) / rect.width, ry = (e.clientY - rect.top) / rect.height;
+    if (rx < 0 || rx > 1 || ry < 0 || ry > 1) { hideLoupes(); return; }
+    [["leftImg", "leftLoupe"], ["rightImg", "rightLoupe"]].forEach(([iId, lId]) => {
+      const im = $(iId), lp = $(lId);
+      const w = im.clientWidth, h = im.clientHeight;
+      lp.style.left = (rx * w - RAD) + "px";
+      lp.style.top = (ry * h - RAD) + "px";
+      lp.style.backgroundSize = `${w * ZOOM}px ${h * ZOOM}px`;
+      lp.style.backgroundPosition = `${-(rx * w * ZOOM - RAD)}px ${-(ry * h * ZOOM - RAD)}px`;
+      lp.classList.add("on");
+    });
+  }
+  document.querySelectorAll(".frame").forEach(f => {
+    f.addEventListener("pointermove", moveLoupes);
+    f.addEventListener("pointerleave", hideLoupes);
+  });
+  $("loupeToggle").addEventListener("change", hideLoupes);
+
+  // ---------- Results ----------
+  const pickedOf = r => r.pickedLeft === r.glazedOnLeft;
+  function showResults() {
+    $("strip").classList.remove("on");
+    const correct = rounds.filter(pickedOf).length, total = rounds.length;
+    const pct = Math.round(correct / total * 100);
+    let title, note;
+    if (pct >= 90) { title = "Eagle eye."; note = "You spotted the cloak almost every time. Glaze's changes weren't invisible to you."; }
+    else if (pct >= 70) { title = "Sharp eyes."; note = "You caught the glazed image well above chance. Something in the perturbations gave them away."; }
+    else if (pct >= 40) { title = "Right around chance."; note = "Glaze did its job: the changes were hard to tell apart from the originals."; }
+    else { title = "Below chance, interestingly."; note = "You often picked the original. Something about the unglazed images may have looked more processed to you."; }
+    $("resultTitle").textContent = title;
+    $("resultNote").textContent = `${note} You got ${correct} of ${total} (${pct}%). Random guessing averages 50%.`;
+    showScreen("results");
+    replay(document.querySelector(".result-hero"));
+
+    // Count-up
+    const scoreEl = $("score");
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const t0 = performance.now(), dur = reduce ? 0 : 900;
+    (function tick(t) {
+      const p = dur ? Math.min(1, (t - t0) / dur) : 1;
+      scoreEl.innerHTML = `${Math.round(correct * (1 - Math.pow(1 - p, 3)))}<small>/${total}</small>`;
+      if (p < 1) requestAnimationFrame(tick);
+    })(t0);
+    $("meterFill").style.width = "0";
+    requestAnimationFrame(() => requestAnimationFrame(() => { $("meterFill").style.width = pct + "%"; }));
+
+    $("review").innerHTML = rounds.map((r, i) => {
+      const ok = pickedOf(r);
+      const L = r.glazedOnLeft ? r.glazed : r.original, R = r.glazedOnLeft ? r.original : r.glazed;
+      const fig = (f, isG, picked) => `<figure><img src="${urlDone.get(f) || ""}" class="${picked ? "picked" : ""}" alt="">
+        <figcaption>${isG ? '<span class="g">Glazed</span>' : "Original"}${picked ? " · your pick" : ""}</figcaption></figure>`;
+      return `<button class="rcard" data-i="${i}" aria-label="Open pair ${i + 1}">
+        <div class="rhead"><b>Pair ${i + 1}</b><span class="verdict${ok ? "" : " no"}">${ok ? "Correct" : "Missed"}</span></div>
+        <div class="thumbs">${fig(L, r.glazedOnLeft, r.pickedLeft)}${fig(R, !r.glazedOnLeft, !r.pickedLeft)}</div>
+      </button>`;
+    }).join("");
+  }
+
+  $("review").addEventListener("click", e => {
+    const card = e.target.closest(".rcard");
+    if (card) openLightbox(+card.dataset.i);
+  });
+
+  // ---------- Lightbox ----------
+  let lastFocus = null;
+  function openLightbox(i) {
+    const r = rounds[i];
+    const L = r.glazedOnLeft ? r.glazed : r.original, R = r.glazedOnLeft ? r.original : r.glazed;
+    const fig = (f, isG, picked) => `<figure><img src="${urlDone.get(f) || ""}" class="${picked ? "picked" : ""}" alt="${isG ? "Glazed" : "Original"}">
+      <figcaption>${isG ? "Glazed" : "Original"}${picked ? " · your pick" : ""}<br><span style="font-weight:400;opacity:.7">${esc(f.name)}</span></figcaption></figure>`;
+    $("lbPair").className = "lb-pair" + ((r.aspect || 1) > 1.3 ? " stack" : "");
+    $("lbPair").innerHTML = fig(L, r.glazedOnLeft, r.pickedLeft) + fig(R, !r.glazedOnLeft, !r.pickedLeft);
+    lastFocus = document.activeElement;
+    $("lightbox").classList.remove("hidden");
+    $("lbClose").focus();
+  }
+  function closeLightbox() { $("lightbox").classList.add("hidden"); if (lastFocus) lastFocus.focus(); }
+  $("lbClose").addEventListener("click", closeLightbox);
+  $("lightbox").addEventListener("click", e => { if (e.target === $("lightbox") || e.target.classList.contains("lb-inner")) closeLightbox(); });
+
+  // ---------- Keyboard ----------
+  document.addEventListener("keydown", e => {
+    if (!$("lightbox").classList.contains("hidden")) { if (e.key === "Escape") closeLightbox(); return; }
+    if ($("stage").classList.contains("hidden")) return;
+    const item = seq[step];
+    if (!item) return;
+    if (item.type === "fact") {
+      if (e.key === "Enter" || e.key === " " || e.key === "ArrowRight") { e.preventDefault(); $("factNext").click(); }
+      return;
+    }
+    if (e.key === "l" || e.key === "L") { $("loupeToggle").checked = !$("loupeToggle").checked; hideLoupes(); return; }
+    const stacked = $("pair").classList.contains("stack");
+    if ((!stacked && e.key === "ArrowLeft") || (stacked && e.key === "ArrowUp")) { e.preventDefault(); pick(true); }
+    else if ((!stacked && e.key === "ArrowRight") || (stacked && e.key === "ArrowDown")) { e.preventDefault(); pick(false); }
+  });
+
+  $("startBtn").addEventListener("click", startQuiz);
+  $("retryBtn").addEventListener("click", startQuiz);
+  $("newBtn").addEventListener("click", () => { renderTeaser(); showScreen("setup"); });
+
+  renderTeaser();
+  updateSetup();
+})();
+</script>
+</body>
+</html>
